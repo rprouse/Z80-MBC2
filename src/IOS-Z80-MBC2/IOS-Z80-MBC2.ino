@@ -196,6 +196,7 @@ const byte    autoexecFlagAddr = 12;      // Internal EEPROM address for AUTOEXE
 const byte    clockModeAddr = 13;         // Internal EEPROM address for the Z80 clock high/low speed switch
                                           //  (1 = low speed, 0 = high speed)
 const byte    diskSetAddr  = 14;          // Internal EEPROM address for the current Disk Set [0..9]
+const byte    allCapsAddr = 15;          // Internal EEPROM address for the ALL_CAPS option
 const byte    maxDiskNum   = 99;          // Max number of virtual disks
 const byte    maxDiskSet   = 4;           // Number of configured Disk Sets
 
@@ -267,6 +268,7 @@ unsigned long timeStamp;                  // Timestamp for led blinking
 char          inChar;                     // Input char from serial
 byte          iCount;                     // Temporary variable (counter)
 byte          clockMode;                  // Z80 clock HI/LO speed selector (0 = 8/10MHz, 1 = 4/5MHz)
+byte          allCaps;                    // Convert incoming characters to ALL_CAPS
 byte          LastRxIsEmpty;              // "Last Rx char was empty" flag. Is set when a serial Rx operation was done
                                           // when the Rx buffer was empty
 
@@ -377,6 +379,14 @@ void setup()
   }
   clockMode = EEPROM.read(clockModeAddr);         // Read the previous stored value
 
+  // Read the ALL_CAPS option
+  if (EEPROM.read(allCapsAddr) > 1)             // Check if it is a valid value, otherwise set it to low speed
+  // Not a valid value. Set it to low speed
+  {
+    EEPROM.update(allCapsAddr, 1);
+  }
+  allCaps = EEPROM.read(allCapsAddr);         // Read the previous stored value
+
   // Read the stored Disk Set. If not valid set it to 0
   diskSet = EEPROM.read(diskSetAddr);
   if (diskSet >= maxDiskSet)
@@ -412,6 +422,11 @@ void setup()
   if (clockMode) Serial.print(CLOCK_LOW);
   else Serial.print(CLOCK_HIGH);
   Serial.println("MHz");
+
+  // Print the ALL_CAPS option
+  Serial.print(F("IOS: ALL CAPS is "));
+  if (allCaps) Serial.println("ON");
+  else Serial.println("OFF");
 
   // Print RTC and GPIO informations if found
   foundRTC = autoSetRTC();                        // Check if RTC is present and initialize it as needed
@@ -461,9 +476,8 @@ void setup()
     else Serial.print(CLOCK_LOW);
     Serial.println("MHz)");
     Serial.print(" 7: Toggle CP/M Autoexec (->");
-    if (!autoexecFlag) Serial.print("ON");
-    else Serial.print("OFF");
-    Serial.println(")");
+    if (!autoexecFlag) Serial.println("ON)");
+    else Serial.println("OFF)");
     Serial.print(" 8: Change ");
     printOsName(diskSet);
     Serial.println();
@@ -474,6 +488,9 @@ void setup()
       Serial.println(" 9: Change RTC time/date");
       maxSelChar = '9';
     }
+    Serial.print(F(" A: Toggle ALL CAPS (->"));
+    if (allCaps) Serial.println("OFF)");
+    else Serial.println("ON)");
 
     // Ask a choice
     Serial.println();
@@ -484,7 +501,7 @@ void setup()
       blinkIOSled(&timeStamp);
       inChar = Serial.read();
     }
-    while ((inChar < minBootChar) || (inChar > maxSelChar));
+    while ((inChar < minBootChar) || (inChar > maxSelChar) && inChar != 'A' && inChar != 'a');
     Serial.print(inChar);
     Serial.println("  Ok");
 
@@ -527,6 +544,12 @@ void setup()
 
       case '9':                                   // Change RTC Date/Time
         ChangeRTC();                              // Change RTC Date/Time if requested
+      break;
+
+      case 'A':                                   // Toggle ALL CAPS on/off
+      case 'a':
+        allCaps = !allCaps;
+        EEPROM.update(allCapsAddr, allCaps);
       break;
     };
 
@@ -1254,6 +1277,7 @@ void loop()
           if (Serial.available() > 0)
           {
             ioData = Serial.read();
+            if (allCaps && ioData >= 0x61 && ioData <= 0x7A) ioData -= 0x20; // Convert lower to UPPER
             LastRxIsEmpty = 0;                // Reset the "Last Rx char was empty" flag
           }
           else LastRxIsEmpty = 1;             // Set the "Last Rx char was empty" flag
