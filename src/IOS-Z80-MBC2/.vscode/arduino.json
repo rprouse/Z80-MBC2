@@ -1,7 +1,7 @@
 {
     "programmer": "AVR ISP",
-    "board": "MightyCore:avr:32z80MBC2",
+    "board": "MightyCore:avr:32",
     "configuration": "bootloader=uart0,pinout=standard,BOD=2v7,LTO=Os,clock=16MHz_external",
-    "port": "COM6",
+    "port": "COM3",
     "sketch": "IOS-Z80-MBC2.ino"
 }

@@ -4,7 +4,7 @@
 #include <util/delay_basic.h>
 #include "integer.h"
 
-// SD chip select pin      * * Z80-MBC2: CS is PB4 (4) * * 
+// SD chip select pin      * * Z80-MBC2: CS is PB4 (4) * *
 #define SD_CS_PIN 4
 
 // Use SPI SCK divisor of 2 if nonzero else 4.

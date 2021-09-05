@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------------------
 
-S220718-R280819 - HW ref: A040618
+S220718-R240620 - HW ref: A040618
 
 IOS - I/O  for Z80-MBC2 (Multi Boot Computer - Z80 128kB RAM @ 4/8Mhz @ Fosc = 16MHz)
 
@@ -9,7 +9,7 @@ Notes:
 
 1:  This SW is ONLY for the Atmega32A used as EEPROM and I/O subsystem (16MHz external oscillator).
 
-2:  Tested on Atmega32A @ Arduino IDE 1.8.5.
+2:  Tested on Atmega32A @ Arduino IDE 1.8.12.
 
 3:  Embedded FW: S200718 iLoad (Intel-Hex loader)
 
@@ -61,7 +61,8 @@ S220718-R260119   Changed the default serial speed to 115200 bps.
                   Added support for xmodem protocol (extended serial Rx buffer check and
                    two new flags into the SYSFLAG opcode for full 8 bit serial I/O control.
                   Added support for uTerm (A071218-R250119) reset at boot time.
-S220718-R280819   Added a new Disk Set for the UCSD Pascal implementation (porting by Michel Bernard)
+S220718-R280819   Added a new Disk Set for the UCSD Pascal implementation (porting by Michel Bernard).
+S220718-R240620   Added support for Collapse Os (https://collapseos.org/).
 
 --------------------------------------------------------------------------------- */
 
@@ -134,13 +135,14 @@ S220718-R280819   Added a new Disk Set for the UCSD Pascal implementation (porti
 //
 // ------------------------------------------------------------------------------
 
-#define   BASICFN       "BASIC47.BIN"
-#define   FORTHFN       "FORTH13.BIN"
-#define   CPMFN         "CPM22.BIN"
-#define   QPMFN         "QPMLDR.BIN"
+#define   BASICFN       "BASIC47.BIN"     // "ROM" Basic
+#define   FORTHFN       "FORTH13.BIN"     // "ROM" Forth
+#define   CPMFN         "CPM22.BIN"       // CP/M 2.2 loader
+#define   QPMFN         "QPMLDR.BIN"      // QP/M 2.71 loader
 #define   CPM3FN        "CPMLDR.COM"      // CP/M 3 CPMLDR.COM loader
 #define   UCSDFN        "UCSDLDR.BIN"     // UCSD Pascal loader
-#define   AUTOFN        "AUTOBOOT.BIN"
+#define   COSFN         "COS.BIN"         // Collapse Os loader
+#define   AUTOFN        "AUTOBOOT.BIN"    // Auotobbot.bin file
 #define   Z80DISK       "DSxNyy.DSK"      // Generic Z80 disk name (from DS0N00.DSK to DS9N99.DSK)
 #define   DS_OSNAME     "DSxNAM.DAT"      // File with the OS name for Disk Set "x" (from DS0NAM.DAT to DS9NAM.DAT)
 #define   BASSTRADDR    0x0000            // Starting address for the stand-alone Basic interptreter
@@ -150,6 +152,7 @@ S220718-R280819   Added a new Disk Set for the UCSD Pascal implementation (porti
 #define   QPMSTRADDR    0x80              // Starting address for the QP/M 2.71 loader
 #define   CPM3STRADDR   0x100             // Starting address for the CP/M 3 loader
 #define   UCSDSTRADDR   0x0000            // Starting address for the UCSD Pascal loader
+#define   COSSTRADDR    0x0000            // Starting address for the Collapse Os loader
 #define   AUTSTRADDR    0x0000            // Starting address for the AUTOBOOT.BIN file
 
 // ------------------------------------------------------------------------------
@@ -196,9 +199,8 @@ const byte    autoexecFlagAddr = 12;      // Internal EEPROM address for AUTOEXE
 const byte    clockModeAddr = 13;         // Internal EEPROM address for the Z80 clock high/low speed switch
                                           //  (1 = low speed, 0 = high speed)
 const byte    diskSetAddr  = 14;          // Internal EEPROM address for the current Disk Set [0..9]
-const byte    allCapsAddr = 15;          // Internal EEPROM address for the ALL_CAPS option
 const byte    maxDiskNum   = 99;          // Max number of virtual disks
-const byte    maxDiskSet   = 4;           // Number of configured Disk Sets
+const byte    maxDiskSet   = 5;           // Number of configured Disk Sets
 
 // Z80 programs images into flash and related constants
 const word  boot_A_StrAddr = 0xfd10;      // Payload A image starting address (flash)
@@ -268,7 +270,6 @@ unsigned long timeStamp;                  // Timestamp for led blinking
 char          inChar;                     // Input char from serial
 byte          iCount;                     // Temporary variable (counter)
 byte          clockMode;                  // Z80 clock HI/LO speed selector (0 = 8/10MHz, 1 = 4/5MHz)
-byte          allCaps;                    // Convert incoming characters to ALL_CAPS
 byte          LastRxIsEmpty;              // "Last Rx char was empty" flag. Is set when a serial Rx operation was done
                                           // when the Rx buffer was empty
 
@@ -379,14 +380,6 @@ void setup()
   }
   clockMode = EEPROM.read(clockModeAddr);         // Read the previous stored value
 
-  // Read the ALL_CAPS option
-  if (EEPROM.read(allCapsAddr) > 1)             // Check if it is a valid value, otherwise set it to low speed
-  // Not a valid value. Set it to low speed
-  {
-    EEPROM.update(allCapsAddr, 1);
-  }
-  allCaps = EEPROM.read(allCapsAddr);         // Read the previous stored value
-
   // Read the stored Disk Set. If not valid set it to 0
   diskSet = EEPROM.read(diskSetAddr);
   if (diskSet >= maxDiskSet)
@@ -412,7 +405,7 @@ void setup()
   Serial.println(F("$$$$$$$$\\ \\$$$$$$  |\\$$$$$$  /        $$ | \\_/ $$ |$$$$$$$  |\\$$$$$$  |$$$$$$$$\\"));
   Serial.println(F("\\________| \\______/  \\______/         \\__|     \\__|\\_______/  \\______/ \\________|"));
 
-  Serial.println(F("\r\n\r\nIOS: Build 20191125 - Rob Prouse"));
+  Serial.println(F("\r\n\r\nZ80-MBC2 - A040618\r\nIOS - I/O Subsystem - S220718-R240620\r\n"));
 
   // Print if the input serial buffer is 128 bytes wide (this is needed for xmodem protocol support)
   if (SERIAL_RX_BUFFER_SIZE >= 128) Serial.println(F("IOS: Found extended serial Rx buffer"));
@@ -422,11 +415,6 @@ void setup()
   if (clockMode) Serial.print(CLOCK_LOW);
   else Serial.print(CLOCK_HIGH);
   Serial.println("MHz");
-
-  // Print the ALL_CAPS option
-  Serial.print(F("IOS: ALL CAPS is "));
-  if (allCaps) Serial.println("ON");
-  else Serial.println("OFF");
 
   // Print RTC and GPIO informations if found
   foundRTC = autoSetRTC();                        // Check if RTC is present and initialize it as needed
@@ -476,8 +464,9 @@ void setup()
     else Serial.print(CLOCK_LOW);
     Serial.println("MHz)");
     Serial.print(" 7: Toggle CP/M Autoexec (->");
-    if (!autoexecFlag) Serial.println("ON)");
-    else Serial.println("OFF)");
+    if (!autoexecFlag) Serial.print("ON");
+    else Serial.print("OFF");
+    Serial.println(")");
     Serial.print(" 8: Change ");
     printOsName(diskSet);
     Serial.println();
@@ -488,9 +477,6 @@ void setup()
       Serial.println(" 9: Change RTC time/date");
       maxSelChar = '9';
     }
-    Serial.print(F(" A: Toggle ALL CAPS (->"));
-    if (allCaps) Serial.println("OFF)");
-    else Serial.println("ON)");
 
     // Ask a choice
     Serial.println();
@@ -501,7 +487,7 @@ void setup()
       blinkIOSled(&timeStamp);
       inChar = Serial.read();
     }
-    while ((inChar < minBootChar) || (inChar > maxSelChar) && inChar != 'A' && inChar != 'a');
+    while ((inChar < minBootChar) || (inChar > maxSelChar));
     Serial.print(inChar);
     Serial.println("  Ok");
 
@@ -544,12 +530,6 @@ void setup()
 
       case '9':                                   // Change RTC Date/Time
         ChangeRTC();                              // Change RTC Date/Time if requested
-      break;
-
-      case 'A':                                   // Toggle ALL CAPS on/off
-      case 'a':
-        allCaps = !allCaps;
-        EEPROM.update(allCapsAddr, allCaps);
       break;
     };
 
@@ -606,6 +586,11 @@ void setup()
       case 3:                                     // UCSD Pascal
         fileNameSD = UCSDFN;
         BootStrAddr = UCSDSTRADDR;
+      break;
+
+      case 4:                                     // Collapse Os
+        fileNameSD = COSFN;
+        BootStrAddr = COSSTRADDR;
       break;
       }
     break;
@@ -1277,7 +1262,6 @@ void loop()
           if (Serial.available() > 0)
           {
             ioData = Serial.read();
-            if (allCaps && ioData >= 0x61 && ioData <= 0x7A) ioData -= 0x20; // Convert lower to UPPER
             LastRxIsEmpty = 0;                // Reset the "Last Rx char was empty" flag
           }
           else LastRxIsEmpty = 1;             // Set the "Last Rx char was empty" flag
