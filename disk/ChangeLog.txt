@@ -1,4 +1,3 @@
-Changelog:
+SD image Changelog:
 
-SD-S220718-R260119-v1.zip    First version
-SD-S220718-R260119-v2.zip    Solves an issue with MBASIC.COM interfering with virtual ports
+SD-S220718-R280819-v1.zip    First version

@@ -1,6 +1,6 @@
 ;==============================================================================
 ;
-; Z80-MBC2 (HW ref: A040618) CP/M 2.2 Custom BIOS - S030818-R040218
+; Z80-MBC2 (HW ref: A040618) CP/M 2.2 Custom BIOS - S030818-R040318
 ;
 ;
 ; NOTE: This CBIOS requires IOS S220718-R260119 (or following revisions until otherwise stated)
