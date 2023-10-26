@@ -1,3 +1,19 @@
 SD image Changelog:
 
-SD-S220718-R280819-v1.zip    First version
+SD-S220718-R280819-v1.zip   First version for IOS S220718-R280819.
+SD-S220718-R240620-v1.zip   First version for IOS S220718-R240620;
+                            Fixed a dislplay bug on VLIST command in
+                             figforth130;
+                            Added support for Collapse OS (Disk Set 4).
+SD-S220718-R290823-v1.zip   First version for IOS S220718-R290823;
+                            Added README.TXT inside /src/CPM_22_Custom_BIOS;
+                            Added README.TXT inside /src/CPM_3_Custom_BIOS;
+                            Added support for Fuzix OS (Disk Set 5);
+                            Changed the CP/M 2.2 behavior on warm boot;
+                            Now CP/M 2.2 supports the SPP Adapter;
+                            Now CP/M 3 (128KB banked) supports the SPP Adapter.
+SD-S220718-R290823-v2.zip   Updated CPM3.SYS and CPM3-128.SYS inside /cpm3 
+                             as it should have been;
+                            Added the /SDCC folder with the SDCC support files
+                             and examples;
+                            Updated some readme.txt files.

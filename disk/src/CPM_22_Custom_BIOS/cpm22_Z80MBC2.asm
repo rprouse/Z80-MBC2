@@ -3766,7 +3766,7 @@ CKSUMTBL: .DB   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 ;                                Z80-MBC2
 ;-----------------------------------------------------------------------
 ;#include    "BIOS QPM271 - S150918.asm"  ; Included CBIOS for the Z80-MBC2
-#include    "BIOS CPM22 - S030818-R140319.asm"  ; Included CBIOS for the Z80-MBC2
+#include    "BIOS CPM22 - S030818-R120923.asm"  ; Included CBIOS for the Z80-MBC2
 
 ;
 ; Following jump table commented because already present in the "included" 
